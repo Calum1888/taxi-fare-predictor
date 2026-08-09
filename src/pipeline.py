@@ -11,6 +11,7 @@ import pandas as pd
 from cleaning import load_and_clean
 from features import engineer_features
 
+from cleaning import FARE_PATH, ZONE_PATH
 
 def build_dataset(trips_path: str = None, taxi_zones_path: str = None) -> pd.DataFrame:
     kwargs = {}
