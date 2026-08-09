@@ -1,3 +1,18 @@
+"""
+Cleaning logic for NYC Yellow Taxi trip data.
+ 
+Thresholds below are justified in notebooks/eda.ipynb via percentile
+and distribution analysis. Summary of reasoning:
+ 
+- trip_distance: 99.9th percentile ~31 miles; values beyond 50 are
+  implausible for NYC taxi trips (GPS/meter errors).
+- fare_amount: filtered to (0, 120) based on distribution tail.
+- trip_duration: negative durations are impossible (dropoff before
+  pickup); values beyond 120 min have near-zero density and are
+  most likely meter-left-running errors, not genuine trips.
+- passenger_count: 0 is not a valid fare-generating trip.
+"""
+
 import duckdb
 import pandas as pd
 
@@ -17,8 +32,6 @@ FARE_AMOUNT_MAX = 120
 # duration filters
 TRIP_DURATION_MIN = 0
 TRIP_DURATION_MAX = 120
-
-
 
 
 def load_and_clean(trips_path: str, taxi_zones_path: str) -> pd.DataFrame:
