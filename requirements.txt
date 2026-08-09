@@ -11,3 +11,6 @@ seaborn>=0.13
 
 # notebooks
 ipykernel>=6.26
+
+# experiment tracking
+mlflow>=3.0
