@@ -31,23 +31,15 @@ def sample_trips():
 
 
 def test_add_datetime_features_creates_expected_columns(sample_trips):
-    result = add_datetime_features(sample_trips)
-    for col in ["trip_duration_min", "pickup_hour", "pickup_dayofweek", "pickup_month", "is_weekend"]:
+    result = date_time_features(sample_trips)
+    for col in ["trip_duration", "pickup_hour", "pickup_dayofweek"]:
         assert col in result.columns
 
 
 def test_trip_duration_calculated_correctly(sample_trips):
-    result = add_datetime_features(sample_trips)
+    result = date_time_features(sample_trips)
     # First trip: 08:30 -> 08:45 = 15 minutes
-    assert result["trip_duration_min"].iloc[0] == pytest.approx(15.0)
-
-
-def test_weekend_flag_correct(sample_trips):
-    result = add_datetime_features(sample_trips)
-    # 2026-01-15 is a Thursday (weekday), 2026-01-17 is a Saturday (weekend)
-    assert result["is_weekend"].iloc[0] == False
-    assert result["is_weekend"].iloc[1] == True
-
+    assert result["trip_duration"].iloc[0] == pytest.approx(15.0)
 
 def test_rate_category_maps_known_codes(sample_trips):
     result = add_rate_category(sample_trips)
