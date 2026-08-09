@@ -18,7 +18,7 @@ def build_dataset(trips_path: str = None, taxi_zones_path: str = None) -> pd.Dat
     if trips_path:
         kwargs["trips_path"] = trips_path
     if taxi_zones_path:
-        kwargs["zones_path"] = taxi_zones_path
+        kwargs["taxi_zones_path"] = taxi_zones_path
 
     df = load_and_clean(**kwargs)
     df = engineer_features(df)
