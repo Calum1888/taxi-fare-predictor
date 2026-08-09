@@ -1,3 +1,5 @@
+# TODO: write docstrings which describes this file and functions
+
 import mlflow
 mlflow.set_tracking_uri("sqlite:///C:/Dev/taxi-fare-predictor/mlflow.db")
 mlflow.set_experiment("taxi-fare-prediction")
@@ -49,6 +51,7 @@ def time_sorted_split(df: pd.DataFrame,
                       target: str, 
                       sort_index: str,
                       test_proportion: float):
+    # TODO: write docstring
     df_sorted = df.sort_values(sort_index).reset_index(drop=True)
     X = pd.get_dummies(df_sorted[num_features + cat_features], columns=cat_features, drop_first=True)
     y = df_sorted[target]
@@ -67,7 +70,7 @@ def train_linear_regession(X_train: pd.DataFrame,
                            y_train: pd.Series, 
                            X_test: pd.DataFrame, 
                            y_test: pd.Series):
-
+    # TODO: write docstring
     with mlflow.start_run(run_name='LinearRegression'):
         model = LinearRegression()
         model.fit(X_train, y_train)
@@ -114,7 +117,7 @@ def train_XGBoost(X_train: pd.DataFrame,
                    objective: str = OBJECTIVE,
                    n_jobs: int = N_JOBS,
                    random_state: int = RANDOM_STATE):
-
+    # TODO: write docstring
     with mlflow.start_run(run_name='XGBoost'):
         model = XGBRegressor(
             n_estimators=n_estimators,
@@ -219,5 +222,9 @@ def train_RandomForest(X_train: pd.DataFrame,
     return model, test_rmse, test_mae, test_r2
 
 def XGB_Grid_Search():
+    # TODO: write function for gridsreaching parameters for XGBoost model
+    return
+
+def RF_Grid_search():
     # TODO: write function for gridsreaching parameters for XGBoost model
     return
