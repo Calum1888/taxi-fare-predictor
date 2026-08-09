@@ -1,0 +1,45 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.Python
+build/
+dist/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (too large for git, and shouldn't be versioned this way)
+data/*.parquet
+data/*.csv
+!data/.gitkeep
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Environment/secrets
+.env
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Model artifacts (large binary files - track separately if needed)
+*.pkl
+*.joblib
+*.cbm
+
+# Logs
+*.log
