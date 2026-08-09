@@ -217,3 +217,7 @@ def train_RandomForest(X_train: pd.DataFrame,
         print(f"Train R2: {train_r2:.3f} | Test R2: {test_r2:.3f}")
         
     return model, test_rmse, test_mae, test_r2
+
+def XGB_Grid_Search():
+    # TODO: write function for gridsreaching parameters for XGBoost model
+    return
