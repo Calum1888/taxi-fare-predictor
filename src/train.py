@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from xgboost import XGBRegressor
-from sklearn import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 from pipeline import build_dataset
@@ -26,11 +26,11 @@ CATEGORICAL_FEATURES = ['pickup_borough', 'dropoff_borough', 'rate_category', 'p
 
 # XGBoost Parameters
 
-N_ESTIMATORS = 300,
-XGB_LEARNING_RATE = 0.05,
-XGB_MAX_DEPTH = 6,
-SUBSAMPLE=0.8,
-COLSAMPLE_BYTREE=0.8,
+N_ESTIMATORS = 300
+XGB_LEARNING_RATE = 0.05
+XGB_MAX_DEPTH = 6
+SUBSAMPLE=0.8
+COLSAMPLE_BYTREE=0.8
 OBJECTIVE = 'reg:squarederror'
 N_JOBS = -1
 RANDOM_STATE = 42
@@ -38,7 +38,7 @@ RANDOM_STATE = 42
 # Random Forest Parameters 
 
 RF_N_ESTIMATORS = 200
-RF_MAX_DEPTH = None       
+RF_MAX_DEPTH = 20       
 RF_MIN_SAMPLES_LEAF = 1
 RF_MAX_FEATURES = "sqrt"
 
@@ -49,7 +49,7 @@ def time_sorted_split(df: pd.DataFrame,
                       target: str, 
                       sort_index: str,
                       test_proportion: float):
-    df_sorted = df.sort_values(TIME_SORT_INDEX).reset_index(drop=True)
+    df_sorted = df.sort_values(sort_index).reset_index(drop=True)
     X = pd.get_dummies(df_sorted[num_features + cat_features], columns=cat_features, drop_first=True)
     y = df_sorted[target]
 
@@ -72,27 +72,35 @@ def train_linear_regession(X_train: pd.DataFrame,
         model = LinearRegression()
         model.fit(X_train, y_train)
     
-        preds = model.predict(X_test)
-     
-        mse = mean_squared_error(y_test, preds)
-        rmse = np.sqrt(mse)
-        mae = mean_absolute_error(y_test, preds)
-        r2 = r2_score(y_test, preds)
+        train_preds = model.predict(X_train)
+        test_preds = model.predict(X_test)
+                        
+        train_rmse = np.sqrt(mean_squared_error(y_train, train_preds))
+        test_rmse = np.sqrt(mean_squared_error(y_test, test_preds))
+        train_mae = mean_absolute_error(y_train, train_preds)
+        test_mae = mean_absolute_error(y_test, test_preds)
+        train_r2 = r2_score(y_train, train_preds)
+        test_r2 = r2_score(y_test, test_preds)
      
         mlflow.log_param("model_type", "LinearRegression")
         mlflow.log_param("n_features", X_train.shape[1])
         mlflow.log_param("train_rows", len(X_train))
         mlflow.log_param("test_rows", len(X_test))
      
-        mlflow.log_metric("rmse", rmse)
-        mlflow.log_metric("mae", mae)
-        mlflow.log_metric("r2", r2)
+        mlflow.log_metric("train_rmse", train_rmse)
+        mlflow.log_metric("test_rmse", test_rmse)
+        mlflow.log_metric("train_mae", train_mae)
+        mlflow.log_metric("test_mae", test_mae)
+        mlflow.log_metric("train_r2", train_r2)
+        mlflow.log_metric("test_r2", test_r2)
+        mlflow.log_metric("rmse_gap", test_rmse - train_rmse)
      
         mlflow.sklearn.log_model(model, 'model')
      
-        print(f"RMSE: {rmse:.3f} | MAE: {mae:.3f} | R2: {r2:.3f}")
-
-    return model, rmse, mae, r2
+        print(f"Train RMSE: {train_rmse:.3f} | Test RMSE: {test_rmse:.3f} | Gap: {test_rmse - train_rmse:.3f}")
+        print(f"Train R2: {train_r2:.3f} | Test R2: {test_r2:.3f}")
+                        
+    return model, test_rmse, test_mae, test_r2
 
 def train_XGBoost(X_train: pd.DataFrame,
                    y_train: pd.Series,
@@ -116,16 +124,19 @@ def train_XGBoost(X_train: pd.DataFrame,
             colsample_bytree=colsample_bytree,
             objective=objective,
             n_jobs=n_jobs,
-            random_state=random_state,
+            random_state=random_state
         )
         model.fit(X_train, y_train)
 
-        preds = model.predict(X_test)
-
-        mse = mean_squared_error(y_test, preds)
-        rmse = np.sqrt(mse)
-        mae = mean_absolute_error(y_test, preds)
-        r2 = r2_score(y_test, preds)
+        train_preds = model.predict(X_train)
+        test_preds = model.predict(X_test)
+                
+        train_rmse = np.sqrt(mean_squared_error(y_train, train_preds))
+        test_rmse = np.sqrt(mean_squared_error(y_test, test_preds))
+        train_mae = mean_absolute_error(y_train, train_preds)
+        test_mae = mean_absolute_error(y_test, test_preds)
+        train_r2 = r2_score(y_train, train_preds)
+        test_r2 = r2_score(y_test, test_preds)
 
         mlflow.log_param("model_type", "XGBRegressor")
         mlflow.log_param("n_estimators", n_estimators)
@@ -137,15 +148,21 @@ def train_XGBoost(X_train: pd.DataFrame,
         mlflow.log_param("train_rows", len(X_train))
         mlflow.log_param("test_rows", len(X_test))
 
-        mlflow.log_metric("rmse", rmse)
-        mlflow.log_metric("mae", mae)
-        mlflow.log_metric("r2", r2)
+        mlflow.log_metric("train_rmse", train_rmse)
+        mlflow.log_metric("test_rmse", test_rmse)
+        mlflow.log_metric("train_mae", train_mae)
+        mlflow.log_metric("test_mae", test_mae)
+        mlflow.log_metric("train_r2", train_r2)
+        mlflow.log_metric("test_r2", test_r2)
+        mlflow.log_metric("rmse_gap", test_rmse - train_rmse)
 
         mlflow.xgboost.log_model(model, "model")
 
-        print(f"RMSE: {rmse:.3f} | MAE: {mae:.3f} | R2: {r2:.3f}")
+        print(f"Train RMSE: {train_rmse:.3f} | Test RMSE: {test_rmse:.3f} | Gap: {test_rmse - train_rmse:.3f}")
+        print(f"Train R2: {train_r2:.3f} | Test R2: {test_r2:.3f}")
+                
+    return model, test_rmse, test_mae, test_r2
 
-    return model, rmse, mae, r2
 
 def train_RandomForest(X_train: pd.DataFrame,
                         y_train: pd.Series,
@@ -163,16 +180,19 @@ def train_RandomForest(X_train: pd.DataFrame,
             min_samples_leaf=min_samples_leaf,
             max_features=max_features,
             n_jobs=-1,
-            random_state=42,
+            random_state=42
         )
         model.fit(X_train, y_train)
 
-        preds = model.predict(X_test)
-
-        mse = mean_squared_error(y_test, preds)
-        rmse = np.sqrt(mse)
-        mae = mean_absolute_error(y_test, preds)
-        r2 = r2_score(y_test, preds)
+        train_preds = model.predict(X_train)
+        test_preds = model.predict(X_test)
+        
+        train_rmse = np.sqrt(mean_squared_error(y_train, train_preds))
+        test_rmse = np.sqrt(mean_squared_error(y_test, test_preds))
+        train_mae = mean_absolute_error(y_train, train_preds)
+        test_mae = mean_absolute_error(y_test, test_preds)
+        train_r2 = r2_score(y_train, train_preds)
+        test_r2 = r2_score(y_test, test_preds)
 
         mlflow.log_param("model_type", "RandomForestRegressor")
         mlflow.log_param("n_estimators", n_estimators)
@@ -183,12 +203,17 @@ def train_RandomForest(X_train: pd.DataFrame,
         mlflow.log_param("train_rows", len(X_train))
         mlflow.log_param("test_rows", len(X_test))
 
-        mlflow.log_metric("rmse", rmse)
-        mlflow.log_metric("mae", mae)
-        mlflow.log_metric("r2", r2)
+        mlflow.log_metric("train_rmse", train_rmse)
+        mlflow.log_metric("test_rmse", test_rmse)
+        mlflow.log_metric("train_mae", train_mae)
+        mlflow.log_metric("test_mae", test_mae)
+        mlflow.log_metric("train_r2", train_r2)
+        mlflow.log_metric("test_r2", test_r2)
+        mlflow.log_metric("rmse_gap", test_rmse - train_rmse)
 
         mlflow.sklearn.log_model(model, "model")
 
-        print(f"RMSE: {rmse:.3f} | MAE: {mae:.3f} | R2: {r2:.3f}")
-
-    return model, rmse, mae, r2
+        print(f"Train RMSE: {train_rmse:.3f} | Test RMSE: {test_rmse:.3f} | Gap: {test_rmse - train_rmse:.3f}")
+        print(f"Train R2: {train_r2:.3f} | Test R2: {test_r2:.3f}")
+        
+    return model, test_rmse, test_mae, test_r2
