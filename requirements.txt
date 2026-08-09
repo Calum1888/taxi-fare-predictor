@@ -14,3 +14,6 @@ ipykernel>=6.26
 
 # experiment tracking
 mlflow>=3.0
+
+# testing
+pytest>=8.0
