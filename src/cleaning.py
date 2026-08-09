@@ -34,7 +34,7 @@ TRIP_DURATION_MIN = 0
 TRIP_DURATION_MAX = 120
 
 
-def load_and_clean(trips_path: str, taxi_zones_path: str) -> pd.DataFrame:
+def load_and_clean(trips_path: str = FARE_PATH, taxi_zones_path: str = ZONE_PATH) -> pd.DataFrame:
     """
     The function takes a path to taxi trip data and returns a cleaned dataframe for feature engineering based on the criteria in the SQL query.
 
