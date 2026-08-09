@@ -56,7 +56,7 @@ def load_and_clean(trips_path: str, taxi_zones_path: str) -> pd.DataFrame:
         LEFT JOIN '{taxi_zones_path}' AS do_zones
             ON trips.DOLocationID = do_zones.LocationID
         WHERE
-            trips.passenger_count > 0
+            trips.passenger_count > {PASSENGER_COUNT_MIN}
             AND trips.trip_distance > {TRIP_DISTANCE_MIN}
             AND trips.trip_distance < {TRIP_DISTANCE_MAX}
             AND trips.fare_amount > {FARE_AMOUNT_MIN}
