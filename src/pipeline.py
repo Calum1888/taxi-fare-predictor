@@ -24,7 +24,6 @@ def build_dataset(trips_path: str = None, taxi_zones_path: str = None) -> pd.Dat
     df = engineer_features(df)
     return df
 
-
 if __name__ == "__main__":
     df = build_dataset()
     print(f"Final shape: {df.shape}")
