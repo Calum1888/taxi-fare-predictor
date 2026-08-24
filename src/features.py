@@ -6,6 +6,9 @@ The file contains functions that engineer features from the data. These include:
 These decisions are based on the EDA conducted on the dataset (../notebooks/eda.ipynb).
 """
 
+import pandas as pd
+
+TIME_CONVERSION = 60 # dividing by 60 gives journey time in minutes
 
 RATECODE_MAP = {
     1: "standard",
@@ -16,8 +19,6 @@ RATECODE_MAP = {
     6: "other",
     99: "unknown",
 }
-
-import pandas as pd
 
 def date_time_features(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -31,7 +32,7 @@ def date_time_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
     # duartion of trip column
-    df['trip_duration'] = (df['tpep_dropoff_datetime'] - df['tpep_pickup_datetime']).dt.total_seconds() / 60
+    df['trip_duration'] = (df['tpep_dropoff_datetime'] - df['tpep_pickup_datetime']).dt.total_seconds() / TIME_CONVERSION
     df['pickup_hour'] = df['tpep_pickup_datetime'].dt.hour
     df['pickup_dayofweek'] = df['tpep_pickup_datetime'].dt.dayofweek  # 0 = Monday, ... , 6 = Sunday
 
