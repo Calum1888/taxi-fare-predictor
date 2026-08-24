@@ -14,7 +14,7 @@ A data loading and cleaning file (`src/cleaning.py`) contains a function `load_a
 
 I have performed feature engineering (`src/features.py`) which includes calculating the duration of trips, the hour and day of pickups, as well as flagging airport trips to JFK and Newark which are flat rates. Columns that need to be scaled will also be treated accordingly.
 
-### Training
+### Initial Training
 
 Training classes and methods have been created which allows for an initial training run for any model as well as a training run for a randomised cross validation search to tune the hyperparamters of the model (src/train_and_tune.py).
 
@@ -24,9 +24,19 @@ Initial training runs of linear regression, XGBoost regressor and Random Forest 
 **Figure 1:** R2 comparison across models.
 
 ![RMSE Comparison](Graphs/Initial_RMSE_by_Model.png)
-**Figure 1:** RMSE comparison across models.
+**Figure 2:** RMSE comparison across models.
 
 Clearly, XGBoost is the best performing model out of the three with the highest R2 score and lowest RMSE. We will see if this trend carries over after hyperparameter tuning.
+
+### Hyperparameter Tuning
+
+Using `RandomisedCVSearch`, the hyperparameters for the XGBoost and Random Forest models were tuned by randomly searching over a grid of parameters to find the best model. The following graphs show the best performing XGBoost and Random Forest models during tuning.
+
+![R2 Comparison](Graphs/XGB_RF_R2.png)
+**Figure 3:** R2 comparison across models.
+
+![RMSE Comparison](Graphs/XGB_RF_RMSE.png)
+**Figure 4:** RMSE comparison across models.
 
 ## Project Structure 
 ```
@@ -38,6 +48,8 @@ TAXI-FARE-PREDICTOR/
 ├── Graphs/                   # Saved model performance plots
 │   ├── Initial_R2_by_Model.png
 │   └── Initial_RMSE_by_Model.png
+|   |__ XGB_RF_R2.png
+|   |__ XGB_RF_RMSE.png
 │
 ├── notebooks/                # Jupyter notebooks for EDA & model comparison
 │   ├── eda.ipynb
