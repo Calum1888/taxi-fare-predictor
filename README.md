@@ -6,17 +6,17 @@ This project aims to predict the fare of a taxi trip in NYC based of historic ta
 
 ## Work done so far
 
-### EDA and Feature Engineering
+### EDA and Feature Engineering (`notebooks/eda.ipynb`)
 
-I have conducted explorotory data analysis on the taxi trip dataset, analysing distributions of features such as fare amount, trip distance and duration of trips. This EDA is contained and documented in `notebooks/model_comparison.ipynb`
+I have conducted explorotory data analysis on the taxi trip dataset, analysing distributions of features such as fare amount, trip distance and duration of trips. This EDA is contained and documented in `notebooks/eda.ipynb`.
 
 A data loading and cleaning file (`src/cleaning.py`) contains a function `load_and_clean()` which takes the file paths for trip data and taxi zone codes and creates an SQL query that filters data based on the criteria which was decided in the EDA.
 
 I have performed feature engineering (`src/features.py`) which includes calculating the duration of trips, the hour and day of pickups, as well as flagging airport trips to JFK and Newark which are flat rates. Columns that need to be scaled will also be treated accordingly.
 
-### Initial Training
+### Initial Training (`notebooks/model_comparison.ipynb`)
 
-Training classes and methods have been created which allows for an initial training run for any model as well as a training run for a randomised cross validation search to tune the hyperparamters of the model (`src/train_and_tune.py`).
+Training classes and methods have been created which allows for an initial training run for any model as well as a training run for a randomised cross validation search to tune the hyperparamters of the model (`src/train_and_tune.py`).  The traning and model comparison is conducted and documented in `notebooks/model_comparison.ipynb`.
 
 Initial training runs of linear regression, XGBoost regressor and Random Forest regressor models have been conducted and their root mean squared error (RMSE) and R2 score have been computed in order to compare the performance of the models. The following graphs compare the models.
 
