@@ -106,7 +106,7 @@ class BaseTrainer():
         for k, v in self.metrics.items():
             mlflow.log_metric(k, v)
 
-        mlflow.sklearn.log_model(self.best_model, "model",
+        mlflow.sklearn.log_model(self.best_model, name="model",
                                  skops_trusted_types=[
             "xgboost.core.Booster",
             "xgboost.sklearn.XGBRegressor"
