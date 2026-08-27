@@ -18,6 +18,10 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 # cross validation
 from sklearn.model_selection import RandomizedSearchCV
 
+# parameters
+N_JOBS = -1
+RANDOM_STATE = 42
+
 def time_sorted_split(df: pd.DataFrame, 
                       num_features: list, 
                       cat_features: list, 
@@ -132,8 +136,8 @@ class TunableTrainer(BaseTrainer):
             n_iter=n_iter,
             cv=cv,
             scoring=scoring,
-            n_jobs=-1,
-            random_state=42
+            n_jobs=N_JOBS,
+            random_state=RANDOM_STATE
         )
 
         search.fit(X_train, y_train)
