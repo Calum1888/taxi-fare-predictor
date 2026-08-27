@@ -2,6 +2,8 @@ import pandas as pd
 import json
 import mlflow
 
+from pathlib import Path
+
 FILL_VALUE = 0
 
 COLUMN_NAME_PATH = '../data/model_training_columns.json'
@@ -12,7 +14,11 @@ TRACKING_URI = 'sqlite:///C:/Dev/taxi-fare-predictor/mlflow.db'
 _model = None
 _training_columns = None
 
-def load_training_columns(path: str = COLUMN_NAME_PATH) -> list:
+def load_training_columns():
+    # Resolve the absolute path to src/ and step up to the project root
+    base_dir = Path(__file__).resolve().parent
+    path = base_dir / ".." / "data" / "model_training_columns.json"
+    
     with open(path, 'r') as f:
         return json.load(f)
 
