@@ -38,9 +38,22 @@ Using `RandomisedCVSearch`, the hyperparameters for the XGBoost and Random Fores
 ![RMSE Comparison](Graphs/XGB_RF_RMSE.png)
 **Figure 4:** RMSE comparison across models.
 
-** do analysis on models **
+We will chose the XGBoost regression model. Despite having similar training RMSE scores, the graph indicates that the XGBoost has significantly lower test RMSE which suggests it generalises better to unseen data that the RandomForest regressor.
 
 ### Fare Prediction
+
+A function (`predict_fare()` in `src/predict.py`) was built to take in the users parameters and make a prediction of the base fare for the journey. The production model which was chosen is loaded using MlFlow and then the prediction is made. Here is an example:
+
+```python
+predict_fare(trip_duration=34.0,
+    passenger_count=2,
+    trip_distance=8.3,
+    pickup_borough='Manhattan',
+    dropoff_borough='Manhattan',
+    rate_category='standard',
+    pickup_hour=11,
+    pickup_dayofweek=4)
+```
 
 ### User Interface
 
