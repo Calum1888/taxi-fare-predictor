@@ -6,8 +6,8 @@ FILL_VALUE = 0
 
 COLUMN_NAME_PATH = '../data/model_training_columns.json'
 
-MODEL_URI = 'models:/taxi-fare-xgboost/production'
-TRACKING_URI = 'sqlite:///C:/Dev/taxi-fare-predictor/notebooks/mlflow.db'
+MODEL_URI = 'models:/taxi-fare-xgboost@production'
+TRACKING_URI = 'sqlite:///C:/Dev/taxi-fare-predictor/mlflow.db'
 
 _model = None
 _training_columns = None
@@ -61,5 +61,5 @@ def predict_fare(trip_duration: float,
 
     prediction = model.predict(df_aligned)
 
-    return prediction
+    return float(prediction[0])
 
