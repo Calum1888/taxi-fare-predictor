@@ -38,6 +38,15 @@ Using `RandomisedCVSearch`, the hyperparameters for the XGBoost and Random Fores
 ![RMSE Comparison](Graphs/XGB_RF_RMSE.png)
 **Figure 4:** RMSE comparison across models.
 
+** do analysis on models **
+
+### Fare Prediction
+
+### User Interface
+
+![First Browser Page](Graphs/first_browser_page.png)
+**Figure 5:** First simple browser page to demostrate the concept.
+
 ## Project Structure 
 ```
 TAXI-FARE-PREDICTOR/
