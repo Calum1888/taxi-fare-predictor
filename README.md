@@ -2,7 +2,7 @@
 
 ## Description
 
-This project aims to predict the fare of a taxi trip in NYC based of historic taxi data.
+This project aims to predict the fare of a taxi trip in NYC based of historic taxi data. The raw data can be found at this link https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page.
 
 ## Work done so far
 
@@ -61,6 +61,23 @@ This returns $39.87.
 
 ![First Browser Page](Graphs/first_browser_page.png)
 **Figure 5:** First simple browser page to demostrate the concept.
+
+### Adding Tips
+
+![New Browser Page](Graphs/browser_with_tip_amount.png)
+**Figure 6:** Demonstration of the add custom tip feature.
+
+## Change in Modelling Approach
+
+### Area IDs
+
+So far in the cleaning, feature enginerring and training of the models, we have only conidered the pickup and dropoff locations as one or more of the five boroughs of NYC. This made for simple encoding during the feature engineering stage but limits the usablitiy of the model for customers wanting to estimate their fare accurately.
+
+By using the 5 boroughs, the model cannot disingusih between travelling 100 meters along one block in Manhatten or travelling the full length of manhatten island. Instead, the model will be retrained using the 256 unique area codes that represent areas of NYC. 
+
+From that, we will be able to create a look-up table of the mean trip distance and duration based on historical data between each area code instead of the user having to estimate their own trip duration and distance which is impractical.
+
+### Retrained Models
 
 ## Project Structure 
 ```
