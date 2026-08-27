@@ -69,3 +69,10 @@ def predict_fare(trip_duration: float,
 
     return float(prediction[0])
 
+def optional_tip(fare: float, tip_percentage: float) -> float:
+
+    tip = fare * (tip_percentage/100)
+
+    return tip
+
+
