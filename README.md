@@ -55,6 +55,8 @@ predict_fare(trip_duration=34.0,
     pickup_dayofweek=4)
 ```
 
+This returns $39.87.
+
 ### User Interface
 
 ![First Browser Page](Graphs/first_browser_page.png)
