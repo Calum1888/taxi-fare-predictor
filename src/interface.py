@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from src.predict import predict_fare
+from src.predict import optional_tip
 
 app = FastAPI()
 
@@ -16,6 +17,7 @@ class FarePredictionInput(BaseModel):
     rate_category: str
     pickup_hour: int
     pickup_dayofweek: int
+    tip_percentage: float = 0.0
 
 # Import or define your predict_fare function here
 # from your_model_module import predict_fare
@@ -35,7 +37,8 @@ def serve_ui():
             input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
             button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 15px; grid-column: span 2; }
             button:hover { background-color: #0056b3; }
-            #result { margin-top: 20px; font-size: 18px; font-weight: bold; color: #28a745; text-align: center; }
+            #result { margin-top: 20px; font-size: 16px; text-align: center; line-height: 1.6; }
+            .total-fare { font-size: 20px; font-weight: bold; color: #28a745; margin-top: 5px; }
         </style>
     </head>
     <body>
@@ -89,6 +92,10 @@ def serve_ui():
                 <label for="pickup_dayofweek">Day of Week (0=Mon, 6=Sun)</label>
                 <input type="number" id="pickup_dayofweek" min="0" max="6" value="4">
             </div>
+            <div class="form-group" style="grid-column: span 2;">
+                <label for="tip_percentage">Tip Percentage (%)</label>
+                <input type="number" id="tip_percentage" min="0" max="100" step="1" value="15">
+            </div>
             <button onclick="sendData()">Estimate Fare</button>
         </div>
 
@@ -96,25 +103,47 @@ def serve_ui():
 
         <script>
             async function sendData() {
-                const payload = {
-                    trip_duration: parseFloat(document.getElementById('trip_duration').value),
-                    passenger_count: parseInt(document.getElementById('passenger_count').value),
-                    trip_distance: parseFloat(document.getElementById('trip_distance').value),
-                    pickup_borough: document.getElementById('pickup_borough').value,
-                    dropoff_borough: document.getElementById('dropoff_borough').value,
-                    rate_category: document.getElementById('rate_category').value,
-                    pickup_hour: parseInt(document.getElementById('pickup_hour').value),
-                    pickup_dayofweek: parseInt(document.getElementById('pickup_dayofweek').value)
-                };
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.color = '#333';
+                resultDiv.innerText = 'Calculating...';
 
-                const response = await fetch('/predict', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                try {
+                    const tipVal = parseFloat(document.getElementById('tip_percentage').value);
+                    const payload = {
+                        trip_duration: parseFloat(document.getElementById('trip_duration').value),
+                        passenger_count: parseInt(document.getElementById('passenger_count').value),
+                        trip_distance: parseFloat(document.getElementById('trip_distance').value),
+                        pickup_borough: document.getElementById('pickup_borough').value,
+                        dropoff_borough: document.getElementById('dropoff_borough').value,
+                        rate_category: document.getElementById('rate_category').value,
+                        pickup_hour: parseInt(document.getElementById('pickup_hour').value),
+                        pickup_dayofweek: parseInt(document.getElementById('pickup_dayofweek').value),
+                        tip_percentage: isNaN(tipVal) ? 0.0 : tipVal
+                    };
 
-                const data = await response.json();
-                document.getElementById('result').innerText = `Estimated Fare: $${data.prediction}`;
+                    const response = await fetch('/predict', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        resultDiv.style.color = '#dc3545';
+                        resultDiv.innerText = `Error: ${JSON.stringify(data.detail || data)}`;
+                        return;
+                    }
+
+                    resultDiv.innerHTML = `
+                        Base Fare: <strong>$${data.base_fare.toFixed(2)}</strong> | 
+                        Tip (${payload.tip_percentage}%): <strong>$${data.tip_amount.toFixed(2)}</strong>
+                        <div class="total-fare">Total: $${data.total_fare.toFixed(2)}</div>
+                    `;
+                } catch (err) {
+                    resultDiv.style.color = '#dc3545';
+                    resultDiv.innerText = `Network Error: ${err.message}`;
+                }
             }
         </script>
     </body>
@@ -124,7 +153,20 @@ def serve_ui():
 # 2. Directly unpack parameters into your function
 @app.post("/predict")
 def predict(data: FarePredictionInput):
-    # **data.model_dump() passes all 8 variables as keyword arguments
-    fare = predict_fare(**data.model_dump())
+    input_dict = data.model_dump()
     
-    return {"prediction": round(float(fare), 2)}
+    # Extract tip_percentage so it isn't passed into predict_fare()
+    tip_percent = input_dict.pop("tip_percentage", 0.0)
+    
+    # Model prediction for base fare
+    base_fare = float(predict_fare(**input_dict))
+    
+    # Tip and Total calculations
+    tip_amount = optional_tip(fare=base_fare, tip_percentage=tip_percent)
+    total_fare = round(base_fare + tip_amount, 2)
+    
+    return {
+        "base_fare": round(base_fare, 2),
+        "tip_amount": tip_amount,
+        "total_fare": total_fare
+    }
