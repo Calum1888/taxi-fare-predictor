@@ -18,6 +18,7 @@ _training_columns = None
 _distance_lookup = None
 _duration_lookup = None
 _zone_name_to_id = None
+_zone_name_to_borough = None
 
 def load_training_columns():
     base_dir = Path(__file__).resolve().parent
@@ -77,20 +78,55 @@ def get_zone_name_to_id():
     if _zone_name_to_id is None:
         _zone_name_to_id = load_zone_name_lookup()
     return _zone_name_to_id
+
+def load_zone_name_lookup() -> dict:
+    base_dir = Path(__file__).resolve().parent
+    path = base_dir / ".." / "data" / "taxi_zone_lookup.csv"
+    lookup_df = pd.read_csv(path)
+
+    return (
+        lookup_df.set_index("Zone")["LocationID"]
+        .to_dict()
+    )
+
+def load_zone_borough_lookup() -> dict:
+    base_dir = Path(__file__).resolve().parent
+    path = base_dir / ".." / "data" / "taxi_zone_lookup.csv"
+    lookup_df = pd.read_csv(path)
+
+    return (
+        lookup_df.set_index("Zone")["Borough"]
+        .fillna("Unknown")
+        .to_dict()
+    )
+
+def get_zone_name_to_id():
+    global _zone_name_to_id
+    if _zone_name_to_id is None:
+        _zone_name_to_id = load_zone_name_lookup()
+    return _zone_name_to_id
+
+def get_zone_name_to_borough():
+    global _zone_name_to_borough
+    if _zone_name_to_borough is None:
+        _zone_name_to_borough = load_zone_borough_lookup()
+    return _zone_name_to_borough
+
 def predict_fare(passenger_count: int,
                 pickup_zone: str,
                 dropoff_zone: str,
-                pickup_borough: str,
-                dropoff_borough: str,
                 rate_category: str,
                 pickup_hour: int,
                 pickup_dayofweek: int) -> float:
 
     zone_name_to_id = get_zone_name_to_id()
+    zone_name_to_borough = get_zone_name_to_borough()
 
     try:
         pickup_zone_id = zone_name_to_id[pickup_zone]
         dropoff_zone_id = zone_name_to_id[dropoff_zone]
+        pickup_borough = zone_name_to_borough[pickup_zone]
+        dropoff_borough = zone_name_to_borough[dropoff_zone]
     except KeyError as e:
         raise ValueError(f"Unrecognized zone name: {e}")
 
