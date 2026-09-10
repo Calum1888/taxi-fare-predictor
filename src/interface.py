@@ -1,26 +1,26 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from src.predict import predict_fare
-from src.predict import optional_tip
+from src.predict import predict_fare, optional_tip, get_zone_name_to_id
 
 app = FastAPI()
 
-# 1. Pydantic model matching your exact function signature
 class FarePredictionInput(BaseModel):
-    trip_duration: float
     passenger_count: int
-    trip_distance: float
-    pickup_borough: str
-    dropoff_borough: str
+    pickup_zone: str
+    dropoff_zone: str
     rate_category: str
     pickup_hour: int
     pickup_dayofweek: int
     tip_percentage: float = 0.0
 
-# Import or define your predict_fare function here
-# from your_model_module import predict_fare
+
+@app.get("/zones")
+def get_zones():
+    zone_names = sorted(get_zone_name_to_id().keys())
+    return {"zones": zone_names}
+
 
 @app.get("/", response_class=HTMLResponse)
 def serve_ui():
@@ -45,36 +45,8 @@ def serve_ui():
         <h2>Taxi Fare Predictor</h2>
         <div class="grid-container">
             <div class="form-group">
-                <label for="trip_duration">Trip Duration (minutes)</label>
-                <input type="number" id="trip_duration" step="0.1" value="34.0">
-            </div>
-            <div class="form-group">
                 <label for="passenger_count">Passenger Count</label>
                 <input type="number" id="passenger_count" value="2" min="1" max="6">
-            </div>
-            <div class="form-group">
-                <label for="trip_distance">Trip Distance (miles)</label>
-                <input type="number" id="trip_distance" step="0.1" value="8.3">
-            </div>
-            <div class="form-group">
-                <label for="pickup_borough">Pickup Borough</label>
-                <select id="pickup_borough">
-                    <option value="Manhattan">Manhattan</option>
-                    <option value="Brooklyn">Brooklyn</option>
-                    <option value="Queens">Queens</option>
-                    <option value="Bronx">Bronx</option>
-                    <option value="Staten Island">Staten Island</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="dropoff_borough">Dropoff Borough</label>
-                <select id="dropoff_borough">
-                    <option value="Manhattan">Manhattan</option>
-                    <option value="Brooklyn">Brooklyn</option>
-                    <option value="Queens">Queens</option>
-                    <option value="Bronx">Bronx</option>
-                    <option value="Staten Island">Staten Island</option>
-                </select>
             </div>
             <div class="form-group">
                 <label for="rate_category">Rate Category</label>
@@ -83,6 +55,14 @@ def serve_ui():
                     <option value="JFK">JFK</option>
                     <option value="negotiated">negotiated</option>
                 </select>
+            </div>
+            <div class="form-group">
+                <label for="pickup_zone">Pickup Zone</label>
+                <select id="pickup_zone"><option value="">Loading...</option></select>
+            </div>
+            <div class="form-group">
+                <label for="dropoff_zone">Dropoff Zone</label>
+                <select id="dropoff_zone"><option value="">Loading...</option></select>
             </div>
             <div class="form-group">
                 <label for="pickup_hour">Pickup Hour (0-23)</label>
@@ -102,6 +82,30 @@ def serve_ui():
         <div id="result"></div>
 
         <script>
+            async function loadZones() {
+                const response = await fetch('/zones');
+                const data = await response.json();
+                const pickupSelect = document.getElementById('pickup_zone');
+                const dropoffSelect = document.getElementById('dropoff_zone');
+
+                pickupSelect.innerHTML = '';
+                dropoffSelect.innerHTML = '';
+
+                data.zones.forEach(zone => {
+                    const option1 = document.createElement('option');
+                    option1.value = zone;
+                    option1.textContent = zone;
+                    pickupSelect.appendChild(option1);
+
+                    const option2 = document.createElement('option');
+                    option2.value = zone;
+                    option2.textContent = zone;
+                    dropoffSelect.appendChild(option2);
+                });
+            }
+
+            window.onload = loadZones;
+
             async function sendData() {
                 const resultDiv = document.getElementById('result');
                 resultDiv.style.color = '#333';
@@ -110,11 +114,9 @@ def serve_ui():
                 try {
                     const tipVal = parseFloat(document.getElementById('tip_percentage').value);
                     const payload = {
-                        trip_duration: parseFloat(document.getElementById('trip_duration').value),
                         passenger_count: parseInt(document.getElementById('passenger_count').value),
-                        trip_distance: parseFloat(document.getElementById('trip_distance').value),
-                        pickup_borough: document.getElementById('pickup_borough').value,
-                        dropoff_borough: document.getElementById('dropoff_borough').value,
+                        pickup_zone: document.getElementById('pickup_zone').value,
+                        dropoff_zone: document.getElementById('dropoff_zone').value,
                         rate_category: document.getElementById('rate_category').value,
                         pickup_hour: parseInt(document.getElementById('pickup_hour').value),
                         pickup_dayofweek: parseInt(document.getElementById('pickup_dayofweek').value),
@@ -150,21 +152,21 @@ def serve_ui():
     </html>
     """
 
-# 2. Directly unpack parameters into your function
+
 @app.post("/predict")
 def predict(data: FarePredictionInput):
     input_dict = data.model_dump()
-    
-    # Extract tip_percentage so it isn't passed into predict_fare()
+
     tip_percent = input_dict.pop("tip_percentage", 0.0)
-    
-    # Model prediction for base fare
-    base_fare = float(predict_fare(**input_dict))
-    
-    # Tip and Total calculations
+
+    try:
+        base_fare = float(predict_fare(**input_dict))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     tip_amount = optional_tip(fare=base_fare, tip_percentage=tip_percent)
     total_fare = round(base_fare + tip_amount, 2)
-    
+
     return {
         "base_fare": round(base_fare, 2),
         "tip_amount": tip_amount,
