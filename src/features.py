@@ -9,6 +9,7 @@ These decisions are based on the EDA conducted on the dataset (../notebooks/eda.
 import pandas as pd
 
 TIME_CONVERSION = 60 # dividing by 60 gives journey time in minutes
+INTRA_ZONE_DEFAULT = 0.8
 
 RATECODE_MAP = {
     1: "standard",
@@ -73,3 +74,60 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df = add_airport_flag(df)
 
     return df
+
+def create_distance_matrix(df: pd.DataFrame) -> pd.DataFrame:
+
+    distance_lookup = (
+    df.groupby(["PULocationID", "DOLocationID"])["trip_distance"]
+    .mean()
+    .reset_index()
+    .rename(columns={"trip_distance": "mean_distance_miles"})
+    )
+
+    distance_matrix = distance_lookup.pivot(
+        index="PULocationID", columns="DOLocationID", values="mean_distance_miles"
+        )
+
+    return distance_matrix
+
+def transpose_fillna(distance_matrix: pd.DataFrame) -> pd.DataFrame:
+
+    distance_matrix = distance_matrix.combine_first(distance_matrix.T)
+
+    return distance_matrix
+
+def intra_zone_fillna(distance_matrix: pd.DataFrame) -> pd.DataFrame:
+
+    diag_indices = distance_matrix.index.intersection(distance_matrix.columns)
+    for idx in diag_indices:
+        if pd.isna(distance_matrix.loc[idx, idx]):
+            distance_matrix.loc[idx, idx] = INTRA_ZONE_DEFAULT
+
+    return distance_matrix
+
+def borough_mean_fillna(df: pd.DataFrame, distance_matrix: pd.DataFrame, lookup_ref: pd.DataFrame) -> pd.DataFrame:
+
+    lookup_df = pd.read_csv('../data/taxi_zone_lookup.csv')
+
+# Create dictionary mapping LocationID -> Borough (filling missing boroughs as 'Unknown')
+    zone_to_boro = (
+        lookup_df.set_index("LocationID")["Borough"]
+        .fillna("Unknown")
+        .to_dict()
+        )
+
+    all_zones = list(range(1, 266))
+
+    boro_matrix = df.groupby(["pickup_borough", "dropoff_borough"])["trip_distance"].mean().unstack()
+
+    # Construct full borough fallback grid
+    boro_fallback = pd.DataFrame(index=all_zones, columns=all_zones, dtype=float)
+    for pu in all_zones:
+        for do in all_zones:
+            pu_boro, do_boro = zone_to_boro.get(pu), zone_to_boro.get(do)
+            if pu_boro in boro_matrix.index and do_boro in boro_matrix.columns:
+                boro_fallback.loc[pu, do] = boro_matrix.loc[pu_boro, do_boro]
+
+    distance_matrix = distance_matrix.fillna(boro_fallback)
+
+    return distance_matrix
