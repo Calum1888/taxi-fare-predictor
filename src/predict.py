@@ -63,15 +63,6 @@ def get_duration_lookup():
         _duration_lookup = load_zone_matrix('duration_lookup.csv')
     return _duration_lookup
 
-def load_zone_name_lookup() -> dict:
-    base_dir = Path(__file__).resolve().parent
-    path = base_dir / ".." / "data" / "taxi_zone_lookup.csv"
-    lookup_df = pd.read_csv(path)
-
-    return (
-        lookup_df.set_index("Zone")["LocationID"]
-        .to_dict()
-    )
 
 def get_zone_name_to_id():
     global _zone_name_to_id
@@ -84,6 +75,8 @@ def load_zone_name_lookup() -> dict:
     path = base_dir / ".." / "data" / "taxi_zone_lookup.csv"
     lookup_df = pd.read_csv(path)
 
+    lookup_df = lookup_df.dropna(subset=["Zone"])
+
     return (
         lookup_df.set_index("Zone")["LocationID"]
         .to_dict()
@@ -93,6 +86,8 @@ def load_zone_borough_lookup() -> dict:
     base_dir = Path(__file__).resolve().parent
     path = base_dir / ".." / "data" / "taxi_zone_lookup.csv"
     lookup_df = pd.read_csv(path)
+
+    lookup_df = lookup_df.dropna(subset=["Zone"])
 
     return (
         lookup_df.set_index("Zone")["Borough"]
