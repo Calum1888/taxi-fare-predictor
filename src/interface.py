@@ -21,7 +21,6 @@ def get_zones():
     zone_names = sorted(get_zone_name_to_id().keys())
     return {"zones": zone_names}
 
-
 @app.get("/", response_class=HTMLResponse)
 def serve_ui():
     return """
