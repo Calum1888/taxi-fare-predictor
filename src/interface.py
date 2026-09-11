@@ -21,6 +21,7 @@ def get_zones():
     zone_names = sorted(get_zone_name_to_id().keys())
     return {"zones": zone_names}
 
+
 @app.get("/", response_class=HTMLResponse)
 def serve_ui():
     return """
@@ -36,8 +37,11 @@ def serve_ui():
             input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
             button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 15px; grid-column: span 2; }
             button:hover { background-color: #0056b3; }
-            #result { margin-top: 20px; font-size: 16px; text-align: center; line-height: 1.6; }
-            .total-fare { font-size: 20px; font-weight: bold; color: #28a745; margin-top: 5px; }
+            #result { margin-top: 20px; font-size: 15px; }
+            .breakdown-row { display: flex; justify-content: space-between; padding: 3px 0; color: #555; }
+            .breakdown-row.zero { color: #bbb; }
+            .subtotal-row { display: flex; justify-content: space-between; padding: 6px 0; border-top: 1px solid #eee; margin-top: 6px; font-weight: bold; }
+            .total-fare { font-size: 20px; font-weight: bold; color: #28a745; margin-top: 10px; text-align: center; }
         </style>
     </head>
     <body>
@@ -105,10 +109,37 @@ def serve_ui():
 
             window.onload = loadZones;
 
+            const surchargeLabels = {
+                mta_state_surcharge: 'MTA State Surcharge',
+                improvement_surcharge: 'Improvement Surcharge',
+                rush_hour_surcharge: 'Rush Hour Surcharge',
+                overnight_surcharge: 'Overnight Surcharge',
+                nys_congestion_surcharge: 'NYS Congestion Surcharge',
+                cbd_congestion_fee: 'MTA Congestion Fee (CBD)'
+            };
+
+            function renderBreakdown(data) {
+                const resultDiv = document.getElementById('result');
+
+                let rows = '';
+                rows += `<div class="breakdown-row"><span>Base Fare</span><span>$${data.base_fare.toFixed(2)}</span></div>`;
+
+                for (const [key, label] of Object.entries(surchargeLabels)) {
+                    const value = data.surcharges[key] || 0;
+                    const zeroClass = value === 0 ? 'zero' : '';
+                    rows += `<div class="breakdown-row ${zeroClass}"><span>${label}</span><span>$${value.toFixed(2)}</span></div>`;
+                }
+
+                rows += `<div class="subtotal-row"><span>Fare with Surcharges</span><span>$${data.fare_with_surcharges.toFixed(2)}</span></div>`;
+                rows += `<div class="breakdown-row"><span>Tip</span><span>$${data.tip_amount.toFixed(2)}</span></div>`;
+
+                resultDiv.innerHTML = rows + `<div class="total-fare">Total: $${data.total_fare.toFixed(2)}</div>`;
+            }
+
             async function sendData() {
                 const resultDiv = document.getElementById('result');
                 resultDiv.style.color = '#333';
-                resultDiv.innerText = 'Calculating...';
+                resultDiv.innerHTML = 'Calculating...';
 
                 try {
                     const tipVal = parseFloat(document.getElementById('tip_percentage').value);
@@ -136,11 +167,7 @@ def serve_ui():
                         return;
                     }
 
-                    resultDiv.innerHTML = `
-                        Base Fare: <strong>$${data.base_fare.toFixed(2)}</strong> | 
-                        Tip (${payload.tip_percentage}%): <strong>$${data.tip_amount.toFixed(2)}</strong>
-                        <div class="total-fare">Total: $${data.total_fare.toFixed(2)}</div>
-                    `;
+                    renderBreakdown(data);
                 } catch (err) {
                     resultDiv.style.color = '#dc3545';
                     resultDiv.innerText = `Network Error: ${err.message}`;
@@ -159,15 +186,18 @@ def predict(data: FarePredictionInput):
     tip_percent = input_dict.pop("tip_percentage", 0.0)
 
     try:
-        base_fare = float(predict_fare(**input_dict))
+        result = predict_fare(**input_dict)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    tip_amount = optional_tip(fare=base_fare, tip_percentage=tip_percent)
-    total_fare = round(base_fare + tip_amount, 2)
+    fare_with_surcharges = result['fare_with_surcharges']
+    tip_amount = optional_tip(fare=fare_with_surcharges, tip_percentage=tip_percent)
+    total_fare = round(fare_with_surcharges + tip_amount, 2)
 
     return {
-        "base_fare": round(base_fare, 2),
-        "tip_amount": tip_amount,
+        "base_fare": result['base_fare'],
+        "surcharges": result['surcharges'],
+        "fare_with_surcharges": fare_with_surcharges,
+        "tip_amount": round(tip_amount, 2),
         "total_fare": total_fare
     }
