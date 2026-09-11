@@ -5,21 +5,21 @@
 ![MLflow](https://img.shields.io/badge/tracking-MLflow-0194E2)
 ![scikit--learn](https://img.shields.io/badge/scikit--learn-F7931E)
 
-Predicts the fare of a NYC taxi trip from just a pickup zone, dropoff zone, passenger count and pickup time — no trip distance or duration required — including a full breakdown of NYC taxi surcharges on top of the model's predicted base fare.
+Predicts the fare of a NYC taxi trip from just a pickup zone, dropoff zone, passenger count and pickup time — no trip distance or duration required, including a full breakdown of NYC taxi surcharges on top of the model's predicted base fare.
 
 Raw data: [NYC TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page)
 
 ## Results
 
+The metrics for the candidate models to be used in production. The linear regression was used as an initial baseline to compare the more complex models. The XGBoost and Random Forest models were tuned with randomised cross-validation serach across a parameter grid. All training runs were logging with MlFlow.
+
 | Model | R² | RMSE |
 |---|---|---|
-| Linear Regression | _TODO_ | _TODO_ |
-| Random Forest (tuned) | _TODO_ | _TODO_ |
-| **XGBoost (tuned)** | **_TODO_** | **_TODO_** |
+| Linear Regression | 0.914 | 4.874 |
+| Random Forest (tuned) | 0.971 | 2.819 |
+| **XGBoost (tuned)** | **0.982** | **2.209** |
 
-XGBoost was selected as the production model — despite similar training RMSE to Random Forest, it showed significantly lower test RMSE, indicating better generalisation to unseen data. See `notebooks/model_comparison.ipynb` for the full comparison.
-
-> Fill in the real R²/RMSE figures from `model_comparison.ipynb` — this table is the first thing a reviewer reads, so it's worth having exact numbers here rather than a link to the notebook.
+XGBoost was selected as the production model — despite similar training RMSE to Random Forest, it showed lower test RMSE, indicating better generalisation to unseen data. See `notebooks/model_comparison.ipynb` for the full comparison. The chosen model was promoted to 'production' in MlFlow so the trained model can be loaded in the future.
 
 ## How It Works
 
@@ -53,9 +53,13 @@ final fare estimate (+ optional tip)
 
 ## Demo
 
-| First version | With tip feature | With surcharges |
-|---|---|---|
-| ![First browser page](Graphs/first_browser_page.png) | ![Browser with tip amount](Graphs/browser_with_tip_amount.png) | ![Browser with surcharges](Graphs/Browser_with_surcharges.png) |
+| Final version with surcharges |
+|---|
+|![Browser with surcharges](Graphs/Browser_with_surcharges.png) |
+
+| First version | With tip feature |
+|---|---|
+| ![First browser page](Graphs/first_browser_page.png) | ![Browser with tip amount](Graphs/browser_with_tip_amount.png) | 
 
 ## Key Design Decisions
 
