@@ -1,4 +1,29 @@
-# TODO: Write docstring for this file 
+"""
+train_and_tune.py
+
+Model training and hyperparameter tuning utilities for the taxi fare
+predictor.
+
+Provides:
+    - time_sorted_split(): a chronological (non-shuffled) train/test split,
+      so evaluation always reflects predicting later trips from earlier ones.
+    - BaseTrainer: fits a model, evaluates it (RMSE/MAE/R2, train vs test),
+      and logs params/metrics/the model itself to MLflow.
+    - TunableTrainer: adds RandomizedSearchCV-based hyperparameter tuning
+      on top of BaseTrainer.
+    - LinearRegressionTrainer, XGBTrainer, RandomForestTrainer: thin
+      TunableTrainer subclasses preconfigured for each model type.
+
+Usage:
+    from train_and_tune import XGBTrainer
+
+    trainer = XGBTrainer()
+    with mlflow.start_run():
+        best_params = trainer.tune(X_train, y_train, param_distributions, n_iter, cv, scoring)
+        trainer.evaluate(X_train, y_train, X_test, y_test)
+        trainer.log_to_mlflow(best_params)
+        trainer.print_results()
+"""
 
 # data malnipulation and computation
 import numpy as np
@@ -66,8 +91,22 @@ def time_sorted_split(df: pd.DataFrame,
     return X_train, y_train, X_test, y_test
 
 class BaseTrainer():
-    # TODO: write docstrings for methods and class
+    """
+    Wraps a single scikit-learn-compatible regressor with a consistent
+    train / evaluate / log / print workflow, so different model types
+    (linear regression, XGBoost, random forest, ...) can be trained and
+    compared through the same interface.
+
+    Subclassed by TunableTrainer to add hyperparameter search on top.
+    """
+
     def __init__(self, model, model_name: str):
+        """
+        Arguments:
+            model: An unfitted scikit-learn-compatible regressor instance.
+            model_name (str): Human-readable name for the model, used when
+                logging to MLflow (e.g. 'XGBRegressor').
+        """
         self.model = model
         self.model_name = model_name
         self.best_model = model
@@ -76,11 +115,38 @@ class BaseTrainer():
         self.metrics = {}
 
     def train(self, X_train, y_train):
+        """
+        Fits the model on the training data.
+
+        Sets self.best_model to the fitted model, so evaluate()/log_to_mlflow()
+        work the same way whether the model was fit directly here or via
+        TunableTrainer.tune().
+
+        Arguments:
+            X_train (pd.DataFrame): Training features.
+            y_train (pd.Series): Training target.
+        """
         self.model.fit(X_train, y_train)
         self.best_model = self.model
         
 
     def evaluate(self, X_train, y_train, X_test, y_test):
+        """
+        Evaluates self.best_model on both the training and test sets, and
+        stores the resulting metrics on self.metrics.
+
+        Arguments:
+            X_train (pd.DataFrame): Training features.
+            y_train (pd.Series): Training target.
+            X_test (pd.DataFrame): Test features.
+            y_test (pd.Series): Test target.
+
+        Returns:
+            dict: {
+                'train_rmse', 'test_rmse', 'train_mae', 'test_mae',
+                'train_r2', 'test_r2', 'rmse_gap'
+            }
+        """
         train_preds = self.best_model.predict(X_train)
         test_preds = self.best_model.predict(X_test)
 
@@ -102,6 +168,18 @@ class BaseTrainer():
         
     
     def log_to_mlflow(self, params: dict):
+        """
+        Logs the model type, given hyperparameters, evaluation metrics
+        (from self.metrics), and the fitted model itself to the current
+        MLflow run.
+
+        Must be called within an active mlflow.start_run() context, and
+        after evaluate() has populated self.metrics.
+
+        Arguments:
+            params (dict): Hyperparameters to log, e.g. the best_params_
+                from a RandomizedSearchCV run.
+        """
         mlflow.log_param("model_type", self.model_name)
 
         for k, v in params.items():
@@ -117,6 +195,11 @@ class BaseTrainer():
         ])
 
     def print_results(self):
+        """
+        Prints a one-line summary of train/test RMSE (with the gap between
+        them) and train/test R2, from self.metrics. Must be called after
+        evaluate().
+        """
         print(
             f"Train RMSE: {self.metrics['train_rmse']:.3f} | "
             f"Test RMSE: {self.metrics['test_rmse']:.3f} | "
@@ -128,8 +211,31 @@ class BaseTrainer():
         )
 
 class TunableTrainer(BaseTrainer):
-    # TODO: write docstrings for methods and class
+    """
+    Extends BaseTrainer with hyperparameter tuning via RandomizedSearchCV,
+    in place of train()'s plain single fit.
+    """
+
     def tune(self, X_train, y_train, param_distributions, n_iter, cv, scoring):
+        """
+        Runs RandomizedSearchCV over param_distributions to find the best
+        hyperparameters for self.model, and sets self.best_model to the
+        resulting best estimator.
+
+        Arguments:
+            X_train (pd.DataFrame): Training features.
+            y_train (pd.Series): Training target.
+            param_distributions (dict): Hyperparameter search space, as
+                expected by RandomizedSearchCV.
+            n_iter (int): Number of parameter settings sampled.
+            cv (int): Number of cross-validation folds.
+            scoring (str): Scoring metric name, as expected by
+                RandomizedSearchCV.
+
+        Returns:
+            dict: The best-found hyperparameters (also stored as
+                self.best_params_).
+        """
         search = RandomizedSearchCV(
             estimator=self.model,
             param_distributions=param_distributions,
@@ -149,18 +255,30 @@ class TunableTrainer(BaseTrainer):
         return self.best_params_
 
 class LinearRegressionTrainer(TunableTrainer):
-    # TODO: write docstrings for methods and class
+    """A TunableTrainer preconfigured with a scikit-learn LinearRegression model."""
+
     def __init__(self):
+        """Initializes an untuned LinearRegression model as the trainer's base model."""
         super().__init__(LinearRegression(), "LinearRegression")
 
 class XGBTrainer(TunableTrainer):
-    # TODO: write docstrings for methods and class
+    """A TunableTrainer preconfigured with an XGBoost XGBRegressor model."""
+
     def __init__(self, **kwargs):
+        """
+        Arguments:
+            **kwargs: Passed through to XGBRegressor's constructor,
+                e.g. fixed hyperparameters not being tuned.
+        """
         super().__init__(XGBRegressor(**kwargs), "XGBRegressor")
 
 class RandomForestTrainer(TunableTrainer):
-    # TODO: write docstrings for methods and class
+    """A TunableTrainer preconfigured with a scikit-learn RandomForestRegressor model."""
+
     def __init__(self, **kwargs):
+        """
+        Arguments:
+            **kwargs: Passed through to RandomForestRegressor's constructor,
+                e.g. fixed hyperparameters not being tuned.
+        """
         super().__init__(RandomForestRegressor(**kwargs), "RandomForestRegressor")
-
-
