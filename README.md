@@ -53,9 +53,13 @@ final fare estimate (+ optional tip)
 
 ## Demo
 
+This browser page is the final FastAPI user interface, taking the pick up and drop off locations of the user and estimating the fare with relevant surcharges.
+
 | Final version with surcharges |
 |---|
 |![Browser with surcharges](Graphs/Browser_with_surcharges.png) |
+
+These demonstartions are earlier iterations of the user interface before the modelling approach was changed.
 
 | First version | With tip feature |
 |---|---|
