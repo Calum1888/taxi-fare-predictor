@@ -1,9 +1,27 @@
 """
-The file contains functions that engineer features from the data. These include:
-- calculating the duration of the trip, hour of pickup and day of pickup
-- add an airport flag which have flat rates (JFK = $70, Newark = $**)
-- categories the rates which are unknown/null
-These decisions are based on the EDA conducted on the dataset (../notebooks/eda.ipynb).
+features.py
+
+Feature engineering for the NYC taxi fare predictor.
+
+Covers two stages of feature building:
+
+1. Per-trip features derived from the raw pickup/dropoff timestamps and
+   rate code — trip duration, pickup hour/day of week, a human-readable
+   rate category, and an airport-flat-rate flag. These decisions are based
+   on the EDA conducted on the dataset (../notebooks/eda.ipynb).
+
+2. PU/DO zone-pair lookup tables (mean historical trip distance and
+   duration between each pickup/dropoff zone), used both as candidate
+   training features and, more importantly, as a stand-in for real
+   trip_distance/trip_duration at inference time — since a user requesting
+   a fare estimate can only supply pickup/dropoff zones, not an actual
+   measured trip. See build_zone_lookup() for the fallback chain used to
+   ensure every zone pair has a value.
+
+Also provides time_sorted_split_df(), a shared chronological train/test
+row-split helper used both when building model features and when building
+zone lookups restricted to the training period (to avoid leaking
+test-period trips into the lookup tables).
 """
 
 import pandas as pd
@@ -72,7 +90,17 @@ def add_airport_flag(df: pd.DataFrame) -> pd.DataFrame:
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Runs all the engineering features.
+    Runs the full per-trip feature engineering pipeline: date/time features,
+    rate category mapping, and the airport flag. Does not build or attach
+    the zone-pair distance/duration lookups — see build_zone_lookup() and
+    add_zone_features() for that separate step.
+
+    Arguments:
+        df (pd.DataFrame): Raw (cleaned) trip dataframe.
+
+    Returns:
+        pd.DataFrame: df with trip_duration, pickup_hour, pickup_dayofweek,
+            rate_category, and is_airport_trip columns added.
     """
     df = date_time_features(df)
     df = add_rate_category(df)
@@ -81,12 +109,13 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def load_zone_lookup() -> pd.DataFrame:
-    base_dir = Path(__file__).resolve().parent
-    path = base_dir / ".." / "data" / "taxi_zone_lookup.csv"
-    return pd.read_csv(path)
+    """
+    Loads the raw taxi zone lookup table (LocationID, Borough, Zone, ...)
+    from taxi_zone_lookup.csv.
 
-
-def load_zone_lookup() -> pd.DataFrame:
+    Returns:
+        pd.DataFrame: The taxi zone lookup table, unfiltered.
+    """
     base_dir = Path(__file__).resolve().parent
     path = base_dir / ".." / "data" / "taxi_zone_lookup.csv"
     return pd.read_csv(path)
@@ -118,11 +147,39 @@ def create_zone_matrix(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
 
 
 def transpose_fillna(matrix: pd.DataFrame) -> pd.DataFrame:
+    """
+    Fills missing PU->DO zone-pair values using the reverse DO->PU value,
+    where available (e.g. if zone A->B was never observed but B->A was,
+    A->B is filled with B->A as a reasonable approximation for a roughly
+    symmetric quantity like distance).
+
+    Arguments:
+        matrix (pd.DataFrame): A PU x DO zone matrix, as from create_zone_matrix().
+
+    Returns:
+        pd.DataFrame: The matrix with reverse-direction values filled in
+            where the forward direction was missing.
+    """
     matrix = matrix.combine_first(matrix.T)
     return matrix
 
 
 def intra_zone_fillna(matrix: pd.DataFrame, value_col: str) -> pd.DataFrame:
+    """
+    Fills missing same-zone (PU == DO) values on the matrix diagonal with a
+    fixed default from INTRA_ZONE_DEFAULTS, since a same-zone trip has no
+    "reverse trip" to fall back on via transpose_fillna().
+
+    Arguments:
+        matrix (pd.DataFrame): A PU x DO zone matrix.
+        value_col (str): The column this matrix represents ('trip_distance'
+            or 'trip_duration'), used to select the right default from
+            INTRA_ZONE_DEFAULTS.
+
+    Returns:
+        pd.DataFrame: The matrix with any missing diagonal (same-zone)
+            entries filled with the default value.
+    """
     default = INTRA_ZONE_DEFAULTS[value_col]
     diag_indices = matrix.index.intersection(matrix.columns)
     for idx in diag_indices:
@@ -132,7 +189,27 @@ def intra_zone_fillna(matrix: pd.DataFrame, value_col: str) -> pd.DataFrame:
 
 
 def borough_mean_fillna(df: pd.DataFrame, matrix: pd.DataFrame, lookup_ref: pd.DataFrame, value_col: str) -> pd.DataFrame:
+    """
+    Fills any remaining missing zone-pair values using the mean value_col
+    for that pair's boroughs (e.g. any still-missing Queens->Brooklyn zone
+    pair is filled with the overall Queens->Brooklyn mean), as a broader
+    fallback for zone pairs with no direct or reverse-direction historical
+    data.
 
+    Arguments:
+        df (pd.DataFrame): Trip data with pickup_borough, dropoff_borough,
+            and value_col columns.
+        matrix (pd.DataFrame): A PU x DO zone matrix, after transpose_fillna()
+            and intra_zone_fillna() have already been applied.
+        lookup_ref (pd.DataFrame): The taxi zone lookup table (LocationID,
+            Borough, ...), used to map each zone ID to its borough.
+        value_col (str): Column to aggregate for the borough-level fallback,
+            e.g. 'trip_distance' or 'trip_duration'.
+
+    Returns:
+        pd.DataFrame: The matrix with remaining gaps filled from
+            borough-level means.
+    """
     zone_to_boro = (
         lookup_ref.set_index("LocationID")["Borough"]
         .fillna("Unknown")
@@ -210,6 +287,24 @@ def time_sorted_split_df(df: pd.DataFrame, sort_index: str, test_proportion: flo
     """
     Sorts a dataframe by date/time and splits it into train/test row sets,
     without selecting or encoding any features.
+
+    Shares the same sort-and-split logic as time_sorted_split() (in
+    train_and_tune.py), but returns the raw, unencoded rows rather than
+    a model-ready feature matrix — used where the original columns
+    (e.g. PULocationID, DOLocationID) are needed, such as building
+    zone lookups restricted to the training period only.
+
+    Arguments:
+        df (pd.DataFrame): Trip dataframe to split.
+        sort_index (str): Column to sort chronologically by, e.g. a
+            pickup datetime column.
+        test_proportion (float): Proportion of rows (by chronological
+            position, not randomly) to hold out as the test set.
+
+    Returns:
+        tuple[pd.DataFrame, pd.DataFrame]: (df_train, df_test), covering
+            the same rows as time_sorted_split() would for the same
+            sort_index/test_proportion, but with all original columns intact.
     """
     df_sorted = df.sort_values(sort_index).reset_index(drop=True)
     split_idx = int(len(df_sorted) * (1 - test_proportion))
