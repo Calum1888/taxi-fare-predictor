@@ -20,7 +20,8 @@ data/*.parquet
 data/*.csv
 !data/.gitkeep
 
-# MLflow
+# MLflow (tracking DB and run artifacts, wherever they are created)
+mlflow.db
 mlruns/
 mlartifacts/
 
@@ -42,7 +43,4 @@ Thumbs.db
 *.cbm
 
 # Logs
-*.log"mlflow.db" 
-"mlruns/" 
-"mlflow.db" 
-"mlruns/" 
+*.log
