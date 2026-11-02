@@ -57,13 +57,13 @@ This browser page is the final FastAPI user interface, taking the pick up and dr
 
 | Final version with surcharges |
 |---|
-|![Browser with surcharges](Graphs/Browser_with_surcharges.png) |
+|![Browser with surcharges](graphs/Browser_with_surcharges.png) |
 
 These demonstartions are earlier iterations of the user interface before the modelling approach was changed.
 
 | First version | With tip feature |
 |---|---|
-| ![First browser page](Graphs/first_browser_page.png) | ![Browser with tip amount](Graphs/browser_with_tip_amount.png) | 
+| ![First browser page](graphs/first_browser_page.png) | ![Browser with tip amount](graphs/browser_with_tip_amount.png) | 
 
 ## Key Design Decisions
 
@@ -171,9 +171,9 @@ Training classes and methods (`src/train_and_tune.py`) allow an initial training
 
 Linear Regression, XGBoost, and Random Forest models were trained and compared on RMSE and R².
 
-![R2 Comparison](Graphs/Initial_R2_by_Model.png)
+![R2 Comparison](graphs/Initial_R2_by_Model.png)
 
-![RMSE Comparison](Graphs/Initial_RMSE_by_Model.png)
+![RMSE Comparison](graphs/Initial_RMSE_by_Model.png)
 
 XGBoost was the best-performing model of the three, with the highest R² and lowest RMSE.
 
@@ -181,9 +181,9 @@ XGBoost was the best-performing model of the three, with the highest R² and low
 
 XGBoost and Random Forest were tuned using `RandomisedCVSearch` over a grid of parameters.
 
-![R2 Comparison](Graphs/XGB_RF_R2.png)
+![R2 Comparison](graphs/XGB_RF_R2.png)
 
-![RMSE Comparison](Graphs/XGB_RF_RMSE.png)
+![RMSE Comparison](graphs/XGB_RF_RMSE.png)
 
 XGBoost was chosen as the production model — despite similar training RMSE, it showed significantly lower test RMSE than Random Forest, indicating better generalisation.
 
