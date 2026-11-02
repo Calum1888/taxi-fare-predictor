@@ -1,5 +1,6 @@
 # NYC Taxi Fare Predictor
 
+![CI](https://github.com/Calum1888/taxi-fare-predictor/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.x-blue)
 ![XGBoost](https://img.shields.io/badge/model-XGBoost-brightgreen)
 ![MLflow](https://img.shields.io/badge/tracking-MLflow-0194E2)
