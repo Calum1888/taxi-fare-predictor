@@ -26,20 +26,26 @@ Usage:
                            pickup_hour=14, pickup_dayofweek=2)
 """
 
-import pandas as pd
 import json
-import mlflow
+import os
 
+import pandas as pd
 from pathlib import Path
+from xgboost import XGBRegressor
 
 FILL_VALUE = 0
 
-COLUMN_NAME_PATH = '../data/model_training_columns.json'
-DISTANCE_LOOKUP_PATH = '../data/distance_lookup.csv'
-DURATION_LOOKUP_PATH = '../data/duration_lookup.csv'
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+# The production model is committed to the repo as a standalone XGBoost file
+# (exported from the MLflow registry by scripts/export_model.py), so inference
+# works on any machine without access to the local MLflow tracking database.
+MODEL_PATH = PROJECT_ROOT / 'models' / 'xgb_model.json'
+
+# Only used by load_model_from_mlflow(), e.g. when comparing a newly registered
+# model against the committed one. Override with the MLFLOW_TRACKING_URI env var.
 MODEL_URI = 'models:/taxi-fare-xgboost@production'
-TRACKING_URI = 'sqlite:///C:/Dev/taxi-fare-predictor/mlflow.db'
+TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI', f"sqlite:///{(PROJECT_ROOT / 'mlflow.db').as_posix()}")
 
 MTA_STATE_SURCHARGE = 0.50
 IMPROVEMENT_SURCHARGE = 1.00
@@ -107,27 +113,50 @@ def load_zone_matrix(filename: str) -> pd.DataFrame:
     matrix.columns = matrix.columns.astype(int)
     return matrix
 
-def load_production_model(path: str = MODEL_URI, tracking_uri: str = TRACKING_URI):
+def load_production_model(path: Path = MODEL_PATH) -> XGBRegressor:
     """
-    Loads the current production model from the MLflow model registry.
+    Loads the production XGBoost model from the committed model file.
 
     Arguments:
-        path (str): MLflow model URI, e.g. 'models:/taxi-fare-xgboost@production'.
+        path (Path): Path to the saved XGBoost model (JSON format).
+
+    Returns:
+        XGBRegressor: The loaded model, ready for .predict().
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Model file not found at {path}. Run scripts/export_model.py to "
+            "export the production model from MLflow."
+        )
+    model = XGBRegressor()
+    model.load_model(path)
+    return model
+
+def load_model_from_mlflow(model_uri: str = MODEL_URI, tracking_uri: str = TRACKING_URI):
+    """
+    Loads a model from the MLflow model registry instead of the committed file.
+
+    Requires a local MLflow tracking store (mlflow.db), so this isn't used by
+    the app — it's kept for experimenting with newly registered models.
+
+    Arguments:
+        model_uri (str): MLflow model URI, e.g. 'models:/taxi-fare-xgboost@production'.
         tracking_uri (str): MLflow tracking store URI.
 
     Returns:
-        mlflow.pyfunc.PyFuncModel: The loaded model, ready for .predict().
+        XGBRegressor: The loaded model.
     """
+    import mlflow  # imported lazily so the app doesn't need MLflow at runtime
+
     mlflow.set_tracking_uri(tracking_uri)
-    model = mlflow.pyfunc.load_model(path)
-    return model
+    return mlflow.sklearn.load_model(model_uri)
 
 def get_model():
     """
     Returns the cached production model, loading it on first call.
 
-    Uses a module-level cache (_model) so the (relatively expensive) MLflow
-    model load only happens once per process, rather than on every prediction.
+    Uses a module-level cache (_model) so the model file load only happens once per process, rather than on every prediction.
 
     Returns:
         mlflow.pyfunc.PyFuncModel: The cached production model.
