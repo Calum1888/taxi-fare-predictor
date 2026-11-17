@@ -252,17 +252,33 @@ def test_get_training_columns_loads_once_and_caches(monkeypatch):
     loader.assert_called_once()
 
 
-def test_load_production_model_sets_tracking_uri_and_loads(monkeypatch):
-    # mlflow lazy-loads its flavour submodules, so swap the whole module reference
-    fake_mlflow = MagicMock()
-    fake_mlflow.pyfunc.load_model.return_value = "model"
-    monkeypatch.setattr(predict, "mlflow", fake_mlflow)
-    set_uri = fake_mlflow.set_tracking_uri
-    load = fake_mlflow.pyfunc.load_model
+def test_load_production_model_loads_saved_xgboost_file(tmp_path):
+    X = pd.DataFrame({"a": [0.0, 1.0, 2.0, 3.0], "b": [1.0, 0.0, 1.0, 0.0]})
+    y = np.array([1.0, 2.0, 3.0, 4.0])
+    trained = predict.XGBRegressor(n_estimators=5).fit(X, y)
+    path = tmp_path / "model.json"
+    trained.save_model(path)
 
-    assert predict.load_production_model("models:/m@prod", "sqlite:///x.db") == "model"
-    set_uri.assert_called_once_with("sqlite:///x.db")
-    load.assert_called_once_with("models:/m@prod")
+    loaded = predict.load_production_model(path)
+
+    np.testing.assert_allclose(loaded.predict(X), trained.predict(X), rtol=1e-6)
+
+
+def test_load_production_model_raises_helpful_error_when_file_missing(tmp_path):
+    with pytest.raises(FileNotFoundError, match="export_model.py"):
+        predict.load_production_model(tmp_path / "missing.json")
+
+
+def test_load_model_from_mlflow_sets_tracking_uri_and_loads(monkeypatch):
+    # mlflow is imported inside the function, so swap it in sys.modules
+    import sys
+    fake_mlflow = MagicMock()
+    fake_mlflow.sklearn.load_model.return_value = "model"
+    monkeypatch.setitem(sys.modules, "mlflow", fake_mlflow)
+
+    assert predict.load_model_from_mlflow("models:/m@prod", "sqlite:///x.db") == "model"
+    fake_mlflow.set_tracking_uri.assert_called_once_with("sqlite:///x.db")
+    fake_mlflow.sklearn.load_model.assert_called_once_with("models:/m@prod")
 
 
 def test_load_training_columns_reads_committed_json():
